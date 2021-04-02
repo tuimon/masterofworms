@@ -13,7 +13,8 @@
 
 #define WORM_MAX_LENGTH 100
 #define SLEEP_LENGTH 100000
-#define FOOD_AMOUNT 2
+#define FOOD_AMOUNT 3
+#define GHOST_SPEED 2
 
 // globs are bad, mmmkay
 int row, col;
@@ -34,27 +35,22 @@ struct Worm {
 struct Worm worm = {
 		{10,10,10,10,10,10,10,10,10,10},
 		{5,5,5,5,5,5,5,5,5,5},
-		1,
-		10,
-		5
+		1, 10, 5
 };
 
 // update other game info
 void printScreen() {
 	move(24,0); clrtoeol();
 	mvprintw(24,0,"Worm length: %i", worm.curr_length );
-	mvprintw(24, 20, "Time left: %is", timeleft/10);
-	// mvprintw(24, 20, "Ax=%i, Ay=%i, Wx=%i, Wy=%i",Ax,Ay, worm.x[0], worm.y[0]);
+	mvprintw(24, 30, "MASTER OF WORMS");
+	mvprintw(24, 64, "Time left: %is", timeleft/10);
 }
 
 // print the bad guys
 void printGhosts() {	
-	// clear old
+	// clear old and print new
 	mvaddch( prevAy, prevAx, EMPTY_CHAR );
-	// lbuffer[prevAy*WIDTH+prevAx] = EMPTY_CHAR;
-	// print new
 	mvaddch( Ay, Ax, GHOST_A_CHAR );
-	// lbuffer[Ay*WIDTH+Ax] = GHOST_A_CHAR;
 }
 
 // print the worm to both logical and physical screen buffer
@@ -91,8 +87,6 @@ bool printFood(int x, int y) {
 	else {
 		lbuffer[y*WIDTH+x] = FOOD_CHAR;
 		mvaddch(y, x, FOOD_CHAR);
-		// fy = y;
-		// fx = x;
 		return true;
 	}
 }
@@ -120,8 +114,7 @@ void moveWorm(int xacc, int yacc) {
 void moveGhosts() {
 	int diffy = (worm.y[0])-Ay;
 	int diffx = (worm.x[0])-Ax;
-	prevAx = Ax;
-	prevAy = Ay;
+	prevAx = Ax; prevAy = Ay;
 
 	if (abs(diffy) > abs(diffx)) {
 		if (diffy < 0) Ay--;
@@ -131,9 +124,11 @@ void moveGhosts() {
 		if (diffx < 0) Ax--;
 		else Ax++;
 	}
-	if (collision(Ax,Ay, WALL_CHAR)) {
+	while (collision(Ax,Ay, WALL_CHAR)) {
 		Ax = prevAx;
 		Ay = prevAy;
+		Ax += ((rand() % 3)-1);
+		if (Ax == prevAx) Ay += ((rand() % 3)-1);
 	}
 }
 
@@ -163,7 +158,7 @@ void init() {
 	printMaze();
 }
 
-// Main. Print the maze only once since it's intact. Loop the movement only.
+// Main. Print the maze only once since it's intact. Loop the movements only.
 int main() {
 
 	int ch, eaten = FOOD_AMOUNT;
@@ -173,7 +168,7 @@ int main() {
 	// game main loop
 	while(timeleft) {
 		printWorm();
-		moveGhosts();
+		if (timeleft % GHOST_SPEED) moveGhosts(); // limit the ghost speed
 		printGhosts();
 		printScreen();
 		while (eaten) {
@@ -211,7 +206,7 @@ int main() {
 
 		// check if dinner time
 		if (collision(worm.x[0], worm.y[0], FOOD_CHAR)) {
-			beep(); eaten++; score++;
+			beep(); eaten++; score++; flash();
 			if (worm.curr_length < WORM_MAX_LENGTH) {
 				worm.curr_length++;
 			}
