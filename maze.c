@@ -46,22 +46,22 @@ void printScreen() {
 	mvprintw(24, 64, "Time left: %is", timeleft/10);
 }
 
-// print the bad guys
+// print the bad guys, note: ghost not needed in the logical buffer
 void printGhosts() {	
 	// clear old and print new
+	attron(COLOR_PAIR(3));
 	mvaddch( prevAy, prevAx, EMPTY_CHAR );
 	mvaddch( Ay, Ax, GHOST_A_CHAR );
+	attron(COLOR_PAIR(2));
 }
 
 // print the worm to both logical and physical screen buffer
 void printWorm() {
 	int l;
-	attron(COLOR_PAIR(2));
 	// clear old worm
 	for (l=0; l<worm.curr_length+1 &&l <WORM_MAX_LENGTH; l++) {
 		lbuffer[worm.y[l]*WIDTH+worm.x[l]] = EMPTY_CHAR;
 		mvaddch( worm.y[l], worm.x[l], EMPTY_CHAR );
-
 	}
 	// draw new worm
 	for (l=1; l<worm.curr_length;l++) {
@@ -78,7 +78,7 @@ bool collision(int x, int y, char obs) {
 	return c == obs;
 }
 
-/* Print food into suitable random place */
+/* Print food into suitable yet random place */
 bool printFood(int x, int y) {
 	// randomizer hit the maze, no can do	
 	if (!collision(x,y, EMPTY_CHAR)) {
@@ -91,7 +91,7 @@ bool printFood(int x, int y) {
 	}
 }
 
-// move worm, if possible, based on acceleration
+// move worm (if possible) based on acceleration
 void moveWorm(int xacc, int yacc) {
     int l;
 	// check if the new position ends up with collision
@@ -115,7 +115,7 @@ void moveGhosts() {
 	int diffy = (worm.y[0])-Ay;
 	int diffx = (worm.x[0])-Ax;
 	prevAx = Ax; prevAy = Ay;
-
+	// NPC AI! Basically: go towards the snake head if possible
 	if (abs(diffy) > abs(diffx)) {
 		if (diffy < 0) Ay--;
 		else Ay++;
@@ -125,8 +125,7 @@ void moveGhosts() {
 		else Ax++;
 	}
 	while (collision(Ax,Ay, WALL_CHAR)) {
-		Ax = prevAx;
-		Ay = prevAy;
+		Ax = prevAx; Ay = prevAy;
 		Ax += ((rand() % 3)-1);
 		if (Ax == prevAx) Ay += ((rand() % 3)-1);
 	}
@@ -135,7 +134,6 @@ void moveGhosts() {
 // print the actual maze to physical screen
 void printMaze() {
 	attron(COLOR_PAIR(1));
-	//  loop to get linefeed - this helps with > 80 col terminals
 	int k=0, x=0, y=0;
 	for (k=0; k<HEIGHT*WIDTH; k++) {
 		mvaddch(y, x++, lbuffer[k]);
@@ -155,6 +153,7 @@ void init() {
 	start_color();
 	init_pair(1, COLOR_CYAN, COLOR_BLACK);
 	init_pair(2, COLOR_YELLOW, COLOR_BLACK);
+	init_pair(3, COLOR_RED, COLOR_BLACK);
 	printMaze();
 }
 
@@ -171,6 +170,7 @@ int main() {
 		if (timeleft % GHOST_SPEED) moveGhosts(); // limit the ghost speed
 		printGhosts();
 		printScreen();
+		// print more food
 		while (eaten) {
 			while (!printFood(rand() % WIDTH, rand() % HEIGHT));
 			eaten--;
@@ -206,7 +206,7 @@ int main() {
 
 		// check if dinner time
 		if (collision(worm.x[0], worm.y[0], FOOD_CHAR)) {
-			beep(); eaten++; score++; flash();
+			beep(); eaten++; score++; 
 			if (worm.curr_length < WORM_MAX_LENGTH) {
 				worm.curr_length++;
 			}
@@ -217,7 +217,7 @@ int main() {
 		timeleft--;
 		usleep(SLEEP_LENGTH);
 	}
-	while(1);
+	while(1); //TODO: decent exit
 	endwin();
 	return 0;
 }
