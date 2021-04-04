@@ -11,7 +11,7 @@
 #define SLEEP_LENGTH 100000
 #define FOOD_AMOUNT 3
 #define GHOST_SPEED 2
-#define TIMELEFT 600;
+#define TIMELEFT 1200;
 
 struct Worm {
 	int x[WORM_MAX_LENGTH];
