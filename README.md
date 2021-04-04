@@ -6,8 +6,10 @@ Now you can.
 
 ## Install
 
-Compile: gcc maze.c -lncurses -o maze
-Run: ./maze
+Compile: 
+```gcc maze.c -lncurses -o maze```
+Run: 
+```./maze```
 
 Note: You need ncurses. 
 
