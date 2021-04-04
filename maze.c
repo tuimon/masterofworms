@@ -11,40 +11,21 @@
 #include <math.h>
 #include "maze.h"
 
-#define WORM_MAX_LENGTH 100
-#define SLEEP_LENGTH 100000
-#define FOOD_AMOUNT 3
-#define GHOST_SPEED 2
 
 // globs are bad, mmmkay
-int row, col;
 int xacc=0, yacc=0, score=0;
-int Ax=40, Ay=11;
-int prevAx = 40, prevAy=11;
-int timeleft = 1200;
+int Ax=40, Ay=11, prevAx = 40, prevAy=11;
+int timeleft = TIMELEFT;
 
-struct Worm {
-	int x[WORM_MAX_LENGTH];
-	int y[WORM_MAX_LENGTH];
-	int curr_length;
-	int prevx;
-	int prevy;
-};
-
-// TODO: convert to pointer within main
-struct Worm worm = {
-		{10,10,10,10,10,10,10,10,10,10},
-		{5,5,5,5,5,5,5,5,5,5},
-		1, 10, 5
-};
 
 // update other game info
-void printScreen() {
+void printScreen(struct Worm *worm) {
 	move(24,0); clrtoeol();
-	mvprintw(24,0,"Worm length: %i", worm.curr_length );
+	mvprintw(24,0,"Worm length: %i", worm->curr_length );
 	mvprintw(24, 30, "MASTER OF WORMS");
 	mvprintw(24, 64, "Time left: %is", timeleft/10);
 }
+
 
 // print the bad guys, note: ghost not needed in the logical buffer
 void printGhosts() {	
@@ -55,28 +36,31 @@ void printGhosts() {
 	attron(COLOR_PAIR(2));
 }
 
+
 // print the worm to both logical and physical screen buffer
-void printWorm() {
+void printWorm(struct Worm* worm) {
 	int l;
 	// clear old worm
-	for (l=0; l<worm.curr_length+1 &&l <WORM_MAX_LENGTH; l++) {
-		lbuffer[worm.y[l]*WIDTH+worm.x[l]] = EMPTY_CHAR;
-		mvaddch( worm.y[l], worm.x[l], EMPTY_CHAR );
+	for (l=0; l<worm->curr_length+1 &&l <WORM_MAX_LENGTH; l++) {
+		lbuffer[worm->y[l]*WIDTH+worm->x[l]] = EMPTY_CHAR;
+		mvaddch( worm->y[l], worm->x[l], EMPTY_CHAR );
 	}
 	// draw new worm
-	for (l=1; l<worm.curr_length;l++) {
-		lbuffer[worm.y[l]*WIDTH+worm.x[l]] = WORM_CHAR;
-		mvaddch( worm.y[l], worm.x[l], WORM_CHAR );
+	for (l=1; l<worm->curr_length;l++) {
+		lbuffer[worm->y[l]*WIDTH+worm->x[l]] = WORM_CHAR;
+		mvaddch( worm->y[l], worm->x[l], WORM_CHAR );
 	}
-	lbuffer[worm.y[0]*WIDTH+worm.x[0]] = WORM_HEAD_CHAR;
-	mvaddch( worm.y[0], worm.x[0], WORM_HEAD_CHAR );
+	lbuffer[worm->y[0]*WIDTH+worm->x[0]] = WORM_HEAD_CHAR;
+	mvaddch( worm->y[0], worm->x[0], WORM_HEAD_CHAR );
 }
+
 
 /* return true if coords are a given obstacle */
 bool collision(int x, int y, char obs) {
 	char c = lbuffer[WIDTH*y+x];
 	return c == obs;
 }
+
 
 /* Print food into suitable yet random place */
 bool printFood(int x, int y) {
@@ -91,29 +75,31 @@ bool printFood(int x, int y) {
 	}
 }
 
+
 // move worm (if possible) based on acceleration
-void moveWorm(int xacc, int yacc) {
+void moveWorm(struct Worm *worm, int xacc, int yacc) {
     int l;
 	// check if the new position ends up with collision
-	if (collision(worm.x[0]+xacc, worm.y[0]+yacc, WALL_CHAR)) {
+	if (collision(worm->x[0]+xacc, worm->y[0]+yacc, WALL_CHAR)) {
 		return;
 	}
 
 	// first move the tail positions
 	for (l=WORM_MAX_LENGTH-2; l>=0; l--) {
-		worm.x[l+1] = worm.x[l];
-		worm.y[l+1] = worm.y[l];
+		worm->x[l+1] = worm->x[l];
+		worm->y[l+1] = worm->y[l];
 	}
 	
 	// then move the head according to acceleration
-	worm.y[0] += yacc;
-	worm.x[0] += xacc;
+	worm->y[0] += yacc;
+	worm->x[0] += xacc;
 }
 
+
 // move ghosts
-void moveGhosts() {
-	int diffy = (worm.y[0])-Ay;
-	int diffx = (worm.x[0])-Ax;
+void moveGhosts(struct Worm *worm) {
+	int diffy = (worm->y[0])-Ay;
+	int diffx = (worm->x[0])-Ax;
 	prevAx = Ax; prevAy = Ay;
 	// NPC AI! Basically: go towards the snake head if possible
 	if (abs(diffy) > abs(diffx)) {
@@ -131,6 +117,7 @@ void moveGhosts() {
 	}
 }
 
+
 // print the actual maze to physical screen
 void printMaze() {
 	attron(COLOR_PAIR(1));
@@ -143,19 +130,20 @@ void printMaze() {
 	}
 }
 
+
 // init ncurses and setup colors
 void init() {
 	initscr();
 	noecho();
 	curs_set(false);
 	nodelay(stdscr,true);
-	getmaxyx(stdscr, row, col);
 	start_color();
 	init_pair(1, COLOR_CYAN, COLOR_BLACK);
 	init_pair(2, COLOR_YELLOW, COLOR_BLACK);
 	init_pair(3, COLOR_RED, COLOR_BLACK);
 	printMaze();
 }
+
 
 // Main. Print the maze only once since it's intact. Loop the movements only.
 int main() {
@@ -164,12 +152,18 @@ int main() {
 	srand((unsigned) time(NULL));
 	init();
 
+	struct Worm w = {
+		{10,10,10,10,10,10,10,10,10,10},{5,5,5,5,5,5,5,5,5,5},1,10,5
+	};
+
+	struct Worm *worm = &w;
+
 	// game main loop
 	while(timeleft) {
-		printWorm();
-		if (timeleft % GHOST_SPEED) moveGhosts(); // limit the ghost speed
+		printWorm(worm);
+		if (timeleft % GHOST_SPEED) moveGhosts(worm); // limit the ghost speed
 		printGhosts();
-		printScreen();
+		printScreen(worm);
 		// print more food
 		while (eaten) {
 			while (!printFood(rand() % WIDTH, rand() % HEIGHT));
@@ -194,21 +188,20 @@ int main() {
 		}
 		// check if ghost collision!
 		if (collision(Ax, Ay, WORM_CHAR) || collision(Ax, Ay, WORM_HEAD_CHAR)) {
-			if (worm.curr_length > 1) worm.curr_length--;
-			prevAy = Ay; prevAx = Ax;
-			Ay=11; Ax=40;
+			if (worm->curr_length > 1) worm->curr_length--;
+			prevAy = Ay; prevAx = Ax; Ay=11; Ax=40;
 			beep();
 			printGhosts();
-			printWorm();
+			printWorm(worm);
 		}
 
-		moveWorm(xacc, yacc);
+		moveWorm(worm, xacc, yacc);
 
 		// check if dinner time
-		if (collision(worm.x[0], worm.y[0], FOOD_CHAR)) {
+		if (collision(worm->x[0], worm->y[0], FOOD_CHAR)) {
 			beep(); eaten++; score++; 
-			if (worm.curr_length < WORM_MAX_LENGTH) {
-				worm.curr_length++;
+			if (worm->curr_length < WORM_MAX_LENGTH) {
+				worm->curr_length++;
 			}
 		}
 
@@ -217,7 +210,8 @@ int main() {
 		timeleft--;
 		usleep(SLEEP_LENGTH);
 	}
-	while(1); //TODO: decent exit
+
 	endwin();
+	printf("You scored: %i\n", worm->curr_length);
 	return 0;
 }
